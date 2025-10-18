@@ -9,10 +9,14 @@ interface SEOProps {
 }
 
 export const updateSEO = (props: SEOProps) => {
-  if (typeof window === 'undefined') return; // Server-side check
+  // Check if we're in a web environment (not React Native)
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    console.log('🔍 SEO update skipped - not in web environment');
+    return;
+  }
 
   const {
-    title = 'IndiLegal Research - Legal Case Database',
+    title = 'IndianCases Research - Legal Case Database',
     description = 'Comprehensive legal case research platform. Search and explore judgments from Supreme Court, High Courts, and District Courts across India.',
     keywords = 'legal research, case law, Supreme Court, High Court, judgments, legal database, India',
     canonicalUrl = 'https://indiancases.com',
@@ -88,14 +92,14 @@ const updateStructuredData = (data: any) => {
 // Predefined SEO configurations for different pages
 export const SEOConfigs = {
   home: {
-    title: 'IndiLegal Research - Legal Case Database | Supreme Court & High Court Judgments',
+    title: 'IndianCases Research - Legal Case Database | Supreme Court & High Court Judgments',
     description: 'Comprehensive legal case research platform. Search and explore judgments from Supreme Court, High Courts, and District Courts across India. Access case laws, legal precedents, and court decisions efficiently.',
     keywords: 'legal research, case law, Supreme Court, High Court, judgments, legal database, India, law cases, court decisions, legal precedents',
     canonicalUrl: 'https://indiancases.com',
     structuredData: {
       '@context': 'https://schema.org',
       '@type': 'WebApplication',
-      'name': 'IndiLegal Research',
+      'name': 'IndianCases Research',
       'description': 'Comprehensive legal case research platform for Indian courts',
       'url': 'https://indiancases.com',
       'applicationCategory': 'Legal Research Application',
@@ -109,7 +113,7 @@ export const SEOConfigs = {
   },
   
   search: {
-    title: 'Search Legal Cases - IndiLegal Research | Case Law Database',
+    title: 'Search Legal Cases - IndianCases Research | Case Law Database',
     description: 'Search through thousands of legal cases from Indian courts. Find relevant judgments, case laws, and legal precedents with advanced filtering options.',
     keywords: 'case search, legal case search, court judgment search, legal precedent search, case law search India',
     canonicalUrl: 'https://indiancases.com/search',
@@ -126,7 +130,7 @@ export const SEOConfigs = {
 
   caseDetail: {
     title: (caseTitle: string, caseNumber: string) => 
-      `${caseTitle} | ${caseNumber} - IndiLegal Research`,
+      `${caseTitle} | ${caseNumber} - IndianCases Research`,
     description: (summary: string, court: string) => 
       `${summary.substring(0, 160)}... Case from ${court}. Access full judgment details and related cases.`,
     keywords: (category: string, court: string) => 
@@ -146,7 +150,7 @@ export const SEOConfigs = {
       'about': caseData.category,
       'publisher': {
         '@type': 'Organization',
-        'name': 'IndiLegal Research'
+        'name': 'IndianCases Research'
       }
     })
   }

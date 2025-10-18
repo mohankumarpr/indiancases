@@ -30,7 +30,7 @@ const Footer = () => {
     <View style={styles.container}>
       <View style={styles.content}>
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, TYPOGRAPHY.h4]}>IndiLegal Research</Text>
+          <Text style={[styles.sectionTitle, TYPOGRAPHY.h4]}>IndianCases Research</Text>
           <Text style={[styles.description, TYPOGRAPHY.body]}>
             Your trusted platform for comprehensive legal case research and analysis.
             Access thousands of judgments and legal documents efficiently.
@@ -100,7 +100,7 @@ const Footer = () => {
       <View style={styles.bottomBar}>
         <View style={styles.bottomContent}>
           <Text style={[styles.copyright, TYPOGRAPHY.caption]}>
-            © 2024 IndiLegal Research. All rights reserved.
+            © 2024 IndianCases Research. All rights reserved.
           </Text>
           <View style={styles.bottomLinks}>
             <TouchableOpacity style={styles.bottomLink}>

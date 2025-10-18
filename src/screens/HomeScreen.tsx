@@ -8,7 +8,6 @@ import {
   Dimensions,
   Platform,
   Image,
-  Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -17,9 +16,11 @@ import { COLORS } from '../constants';
 import { RootStackParamList } from '../types';
 import BottomNavigation from '../components/BottomNavigation';
 import Footer from '../components/Footer';
+import LogoSVG from '../components/LogoSVG';
 import { useAuthContext } from '../context/AuthContext';
 import useSEO from '../hooks/useSEO';
 import { SEOConfigs } from '../utils/seo';
+import { useToastMessage } from '../hooks/useToastMessage';
 
 const { width } = Dimensions.get('window');
 
@@ -49,6 +50,7 @@ const LATEST_CASES = [
 const HomeScreen = () => {
   const navigation = useNavigation<HomeScreenNavigationProp>();
   const { user } = useAuthContext();
+  const { showSuccess, showError, showWarning, showInfo } = useToastMessage();
   const [showAlert, setShowAlert] = useState(true);
 
   // SEO optimization
@@ -67,17 +69,17 @@ const HomeScreen = () => {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Image 
-            source={require('../../assets/logo.svg')} 
-            style={styles.logoImage}
-            resizeMode="contain"
+          <LogoSVG 
+            width={24} 
+            height={24} 
+            color="#333333" 
           />
           <Text style={styles.headerTitle}>Indian Cases</Text>
         </View>
         <View style={styles.headerRight}>
           <TouchableOpacity 
             style={styles.iconButton}
-            onPress={() => Alert.alert('Support', 'Contact support feature coming soon!')}
+            onPress={() => showInfo('Support', 'Contact support feature coming soon!')}
           >
             <Ionicons name="headset-outline" size={24} color="#999" />
           </TouchableOpacity>
@@ -214,6 +216,8 @@ const styles = StyleSheet.create({
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+    gap: 8,
   },
   logoImage: {
     width: 32,

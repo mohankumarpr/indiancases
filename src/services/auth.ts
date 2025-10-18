@@ -16,6 +16,7 @@ interface AuthInitResponse {
 interface AuthenticateResponse {
   session_token: string;
   user?: any;
+  instructions?: string[];
 }
 
 interface UserInfo {

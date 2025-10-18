@@ -26,7 +26,7 @@ EXPO_PUBLIC_API_URL=https://your-api-domain.com
 EXPO_PUBLIC_ENV=development
 
 # App Configuration
-EXPO_PUBLIC_APP_NAME=IndiLegal Research
+EXPO_PUBLIC_APP_NAME=IndianCases Research
 EXPO_PUBLIC_APP_VERSION=1.0.0
 ```
 

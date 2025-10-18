@@ -1,4 +1,4 @@
-# IndiLegal Research App
+# IndianCases Research App
 
 A React Native Expo app that works for web, Android, and iOS. This is a legal case research platform inspired by indiancases.com, designed with modern UI/UX principles and responsive layout.
 

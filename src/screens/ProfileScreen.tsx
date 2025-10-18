@@ -9,7 +9,6 @@ import {
   Platform,
   Image,
   TextInput,
-  Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -17,9 +16,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants';
 import { RootStackParamList } from '../types';
 import BottomNavigation from '../components/BottomNavigation';
+import LogoSVG from '../components/LogoSVG';
 import { useAuthContext } from '../context/AuthContext';
 import useSEO from '../hooks/useSEO';
 import { SEOConfigs } from '../utils/seo';
+import { useToastMessage } from '../hooks/useToastMessage';
 
 const { width } = Dimensions.get('window');
 
@@ -33,6 +34,7 @@ type ProfileScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Prof
 const ProfileScreen = () => {
   const navigation = useNavigation<ProfileScreenNavigationProp>();
   const { user } = useAuthContext();
+  const { showSuccess, showError, showWarning, showInfo } = useToastMessage();
   
   const [phoneNumber, setPhoneNumber] = useState('8888888888');
   const [isEditingPhone, setIsEditingPhone] = useState(false);
@@ -41,11 +43,11 @@ const ProfileScreen = () => {
   useSEO(SEOConfigs.home);
 
   const handleSupport = () => {
-    Alert.alert('Support', 'Contact support feature coming soon!');
+    showInfo('Support', 'Contact support feature coming soon!');
   };
 
   const handleUploadPhoto = () => {
-    Alert.alert('Upload Photo', 'Photo upload feature coming soon!');
+    showInfo('Upload Photo', 'Photo upload feature coming soon!');
   };
 
   const handleEditPhone = () => {
@@ -54,7 +56,7 @@ const ProfileScreen = () => {
 
   const handleSavePhone = () => {
     setIsEditingPhone(false);
-    Alert.alert('Success', 'Phone number updated!');
+    showSuccess('Success', 'Phone number updated!');
   };
 
   return (
@@ -62,10 +64,10 @@ const ProfileScreen = () => {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Image 
-            source={require('../../assets/logo.svg')} 
-            style={styles.logoImage}
-            resizeMode="contain"
+          <LogoSVG 
+            width={24} 
+            height={24} 
+            color="#333333" 
           />
           <Text style={styles.headerTitle}>Indian Cases</Text>
         </View>
@@ -204,6 +206,7 @@ const styles = StyleSheet.create({
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
   },
   logoImage: {
     width: 32,

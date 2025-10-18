@@ -9,7 +9,7 @@ import {
   Image,
   Dimensions,
   TextInput,
-  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -21,8 +21,13 @@ import CaseDetailModal from '../components/CaseDetailModal';
 import BookmarkModal from '../components/BookmarkModal';
 import Dropdown from '../components/Dropdown';
 import CalendarPicker from '../components/CalendarPicker';
+import LogoSVG from '../components/LogoSVG';
+import { useToastMessage } from '../hooks/useToastMessage';
 import useSEO from '../hooks/useSEO';
 import { SEOConfigs } from '../utils/seo';
+import { getJudgmentData } from '../services/judgmentService';
+import { getDeviceToken } from '../utils/deviceToken';
+import { decryptJudgmentData } from '../utils/judgmentDecrypt';
 
 const { width } = Dimensions.get('window');
 
@@ -30,6 +35,7 @@ type SearchScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Searc
 
 const SearchScreen = () => {
   const navigation = useNavigation<SearchScreenNavigationProp>();
+  const { showSuccess, showError, showWarning, showInfo } = useToastMessage();
   
   // Toggle between form view and results view
   const [showResults, setShowResults] = useState(false);
@@ -47,6 +53,10 @@ const SearchScreen = () => {
   const [selectedCase, setSelectedCase] = useState<any>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [bookmarkModalVisible, setBookmarkModalVisible] = useState(false);
+  
+  // Search state
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
 
   // Example data
   const actsOptions = [
@@ -122,17 +132,114 @@ const SearchScreen = () => {
 
   useSEO(SEOConfigs.search);
 
-  const handleSearch = () => {
-    setShowResults(true);
+  const handleSearch = async () => {
+    try {
+      setIsSearching(true);
+      setSearchError(null);
+      
+      // For now, show static search results instead of making API calls
+      console.log('🔍 Showing static search results (no API call)');
+      
+      // Simulate search delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      console.log('✅ Static search results loaded');
+      
+      // Show the search results instead of immediately showing modal
+      setShowResults(true);
+      
+    } catch (error) {
+      console.error('❌ Search failed:', error);
+      setSearchError(error instanceof Error ? error.message : 'Failed to fetch judgment data');
+      
+      // Show error toast
+      showError(
+        'Search Error',
+        'Failed to fetch judgment data. Please try again.',
+        {
+          duration: 5000,
+          action: {
+            label: 'Retry',
+            onPress: () => {
+              setSearchError(null);
+              handleSearch();
+            }
+          }
+        }
+      );
+    } finally {
+      setIsSearching(false);
+    }
   };
 
   const handleEditSearch = () => {
     setShowResults(false);
   };
 
-  const handleCasePress = (caseItem: any) => {
-    setSelectedCase(caseItem);
+  const handleCasePress = async (caseItem: any) => {
+    // Set the selected case with additional data for the modal
+    setSelectedCase({
+      ...caseItem,
+      uuid: caseItem.id,
+      caseId: caseItem.caseId,
+      headnote: caseItem.headnote,
+      // Add judgment ID for API call (using device token as per your requirement)
+      judgmentId: caseItem.id, // This will be used for the judgment API call
+      
+      // Add case-specific data based on the case ID
+      court: getCaseCourt(caseItem.caseId),
+      equivalents: "Unreported",
+      petitioners: getCasePetitioners(caseItem.caseId),
+      respondents: getCaseRespondents(caseItem.caseId),
+      
+      // Add some mock judgment data for the modal
+      data: {
+        text: `This is a sample judgment text for ${caseItem.caseId}. The case involves important legal principles and precedents that are relevant to the current matter. This judgment provides detailed analysis of the legal issues involved and sets important precedents for future cases.`,
+        judgment: `Judgment content for ${caseItem.caseId}...`,
+        metadata: {
+          citation: caseItem.caseId,
+          court: getCaseCourt(caseItem.caseId),
+          date: 'Decided on 15-05-2025',
+          judges: 'Justice Bela M Trivedi, Justice Prasanna B Varale',
+          title: 'Sample Case Title'
+        }
+      }
+    });
     setModalVisible(true);
+  };
+
+  // Helper functions to get case-specific data
+  const getCaseCourt = (caseId: string) => {
+    if (caseId.includes('KER')) return 'Kerala High Court';
+    if (caseId.includes('DEL')) return 'Delhi High Court';
+    if (caseId.includes('BOM')) return 'Bombay High Court';
+    return 'Supreme Court of India';
+  };
+
+  const getCasePetitioners = (caseId: string) => {
+    if (caseId.includes('KER')) {
+      return 'State of Kerala\nKerala State Electricity Board\nPower Grid Corporation of India';
+    }
+    if (caseId.includes('DEL')) {
+      return 'State of Delhi\nDelhi Police\nUnion of India';
+    }
+    if (caseId.includes('BOM')) {
+      return 'State of Maharashtra\nMaharashtra State Electricity Board\nReliance Industries Ltd.';
+    }
+    return 'Union of India\nState of India\nGovernment of India';
+  };
+
+  const getCaseRespondents = (caseId: string) => {
+    if (caseId.includes('KER')) {
+      return 'Kerala Power Corporation\nElectricity Regulatory Commission\nLocal Power Companies';
+    }
+    if (caseId.includes('DEL')) {
+      return 'Delhi Electricity Board\nPrivate Power Companies\nConsumer Associations';
+    }
+    if (caseId.includes('BOM')) {
+      return 'Maharashtra Electricity Board\nPrivate Utilities\nIndustrial Consumers';
+    }
+    return 'Private Companies\nConsumer Forums\nRegulatory Bodies';
   };
 
   const handleCloseModal = () => {
@@ -157,17 +264,17 @@ const SearchScreen = () => {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Image 
-            source={require('../../assets/logo.svg')} 
-            style={styles.logoImage}
-            resizeMode="contain"
+          <LogoSVG 
+            width={24} 
+            height={24} 
+            color="#FFFFFF" 
           />
           <Text style={styles.headerTitle}>Indian Cases</Text>
         </View>
         <View style={styles.headerRight}>
           <TouchableOpacity 
             style={styles.iconButton}
-            onPress={() => Alert.alert('Support', 'Contact support feature coming soon!')}
+            onPress={() => showInfo('Support', 'Contact support feature coming soon!')}
           >
             <Ionicons name="headset-outline" size={24} color="#999" />
           </TouchableOpacity>
@@ -266,10 +373,20 @@ const SearchScreen = () => {
             <Text style={styles.caseCountText}>Searching across 888888 number of cases.</Text>
 
             {/* View Results Button */}
-            <TouchableOpacity style={styles.viewResultsButton} onPress={handleSearch}>
-              <Ionicons name="search" size={20} color={COLORS.white} />
-              <Text style={styles.viewResultsText}>View Results</Text>
-    </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.viewResultsButton, isSearching && styles.viewResultsButtonDisabled]} 
+              onPress={handleSearch}
+              disabled={isSearching}
+            >
+              {isSearching ? (
+                <ActivityIndicator size="small" color={COLORS.white} />
+              ) : (
+                <Ionicons name="search" size={20} color={COLORS.white} />
+              )}
+              <Text style={styles.viewResultsText}>
+                {isSearching ? 'Searching...' : 'View Results'}
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
@@ -296,17 +413,17 @@ const SearchScreen = () => {
       {/* Top Header */}
       <View style={styles.topHeader}>
         <View style={styles.headerLeft}>
-          <Image 
-            source={require('../../assets/logo.svg')} 
-            style={styles.logoImage}
-            resizeMode="contain"
+          <LogoSVG 
+            width={24} 
+            height={24} 
+            color="#333333" 
           />
           <Text style={styles.headerTitle}>Indian Cases</Text>
         </View>
         <View style={styles.headerRight}>
           <TouchableOpacity 
             style={styles.iconButton}
-            onPress={() => Alert.alert('Support', 'Contact support feature coming soon!')}
+            onPress={() => showInfo('Support', 'Contact support feature coming soon!')}
           >
             <Ionicons name="headset-outline" size={24} color="#999" />
           </TouchableOpacity>
@@ -419,10 +536,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+    gap: 8,
   },
   logoImage: {
     width: 32,
@@ -439,7 +559,7 @@ const styles = StyleSheet.create({
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    justifyContent: 'flex-end',
   },
   iconButton: {
     padding: 8,
@@ -556,6 +676,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     marginLeft: 6,
+  },
+  viewResultsButtonDisabled: {
+    backgroundColor: '#999',
+    opacity: 0.7,
   },
   // Results view styles
   topHeader: {

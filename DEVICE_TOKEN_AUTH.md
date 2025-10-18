@@ -147,7 +147,7 @@ EXPO_PUBLIC_API_URL=https://prod-apse-la01.whiteband.ai
 EXPO_PUBLIC_ENV=production
 
 # App Configuration
-EXPO_PUBLIC_APP_NAME=IndiLegal Research
+EXPO_PUBLIC_APP_NAME=IndianCases Research
 EXPO_PUBLIC_APP_VERSION=1.0.0
 ```
 

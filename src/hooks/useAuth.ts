@@ -4,9 +4,9 @@ import {
   createNewSession, 
   initAuthentication, 
   verifyOTP, 
-  getUserInfo,
-  getIPAddress 
+  getUserInfo
 } from '../services/auth';
+import { getIPAddress } from '../utils/apiClient';
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -18,8 +18,8 @@ interface AuthState {
 
 export const useAuth = () => {
   const [authState, setAuthState] = useState<AuthState>({
-    isAuthenticated: false,
-    isLoading: true,
+    isAuthenticated: Boolean(false),
+    isLoading: Boolean(true),
     user: null,
     sessionToken: null,
     error: null,
@@ -37,18 +37,18 @@ export const useAuth = () => {
 
       if (sessionToken && userData) {
         setAuthState({
-          isAuthenticated: true,
-          isLoading: false,
+          isAuthenticated: Boolean(true),
+          isLoading: Boolean(false),
           user: JSON.parse(userData),
           sessionToken,
           error: null,
         });
       } else {
-        setAuthState(prev => ({ ...prev, isLoading: false }));
+        setAuthState(prev => ({ ...prev, isLoading: Boolean(false) }));
       }
     } catch (error) {
       console.error('Check session error:', error);
-      setAuthState(prev => ({ ...prev, isLoading: false }));
+      setAuthState(prev => ({ ...prev, isLoading: Boolean(false) }));
     }
   };
 
@@ -57,13 +57,13 @@ export const useAuth = () => {
    */
   const requestOTP = async (email: string): Promise<boolean> => {
     try {
-      setAuthState(prev => ({ ...prev, isLoading: true, error: null }));
+      setAuthState(prev => ({ ...prev, isLoading: Boolean(true), error: null }));
 
       // Get IP address
       const ipAddress = await getIPAddress();
 
       // Create new session
-      const sessionData = await createNewSession(ipAddress, null);
+      const sessionData = await createNewSession();
       const sessionToken = sessionData.session_token;
 
       // Initialize authentication (request OTP)
@@ -75,7 +75,7 @@ export const useAuth = () => {
 
       setAuthState(prev => ({ 
         ...prev, 
-        isLoading: false,
+        isLoading: Boolean(false),
         sessionToken,
       }));
 
@@ -84,7 +84,7 @@ export const useAuth = () => {
       console.error('Request OTP error:', error);
       setAuthState(prev => ({ 
         ...prev, 
-        isLoading: false, 
+        isLoading: Boolean(false), 
         error: error.message || 'Failed to send OTP' 
       }));
       return false;
@@ -96,7 +96,7 @@ export const useAuth = () => {
    */
   const verifyOTPAndLogin = async (otp: string): Promise<boolean> => {
     try {
-      setAuthState(prev => ({ ...prev, isLoading: true, error: null }));
+      setAuthState(prev => ({ ...prev, isLoading: Boolean(true), error: null }));
 
       // Get stored session token and email
       const sessionToken = await AsyncStorage.getItem('temp_session_token');
@@ -122,8 +122,8 @@ export const useAuth = () => {
       await AsyncStorage.removeItem('temp_email');
 
       setAuthState({
-        isAuthenticated: true,
-        isLoading: false,
+        isAuthenticated: Boolean(true),
+        isLoading: Boolean(false),
         user: userData,
         sessionToken: newSessionToken,
         error: null,
@@ -134,7 +134,7 @@ export const useAuth = () => {
       console.error('Verify OTP error:', error);
       setAuthState(prev => ({ 
         ...prev, 
-        isLoading: false, 
+        isLoading: Boolean(false), 
         error: error.message || 'Invalid OTP' 
       }));
       return false;
@@ -152,8 +152,8 @@ export const useAuth = () => {
       await AsyncStorage.removeItem('temp_email');
 
       setAuthState({
-        isAuthenticated: false,
-        isLoading: false,
+        isAuthenticated: Boolean(false),
+        isLoading: Boolean(false),
         user: null,
         sessionToken: null,
         error: null,

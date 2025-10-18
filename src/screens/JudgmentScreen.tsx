@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Image,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -15,6 +16,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants';
 import { RootStackParamList } from '../types';
 import BottomNavigation from '../components/BottomNavigation';
+import LogoSVG from '../components/LogoSVG';
+import { getJudgmentData, initializeJudgmentService } from '../services/judgmentService';
+import { getDeviceToken } from '../utils/deviceToken';
+import { useToastMessage } from '../hooks/useToastMessage';
 
 type JudgmentScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Judgment'>;
 type JudgmentScreenRouteProp = RouteProp<RootStackParamList, 'Judgment'>;
@@ -22,8 +27,64 @@ type JudgmentScreenRouteProp = RouteProp<RootStackParamList, 'Judgment'>;
 const JudgmentScreen = () => {
   const navigation = useNavigation<JudgmentScreenNavigationProp>();
   const route = useRoute<JudgmentScreenRouteProp>();
+  const { showSuccess, showError, showWarning, showInfo } = useToastMessage();
 
   const caseData = route.params?.caseData || {};
+  const [judgmentData, setJudgmentData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Initialize judgment service and fetch data
+  useEffect(() => {
+    const fetchJudgment = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        // Initialize the judgment service (libsodium)
+        await initializeJudgmentService();
+        
+        // Use judgment ID from case data, or fall back to device UUID v7
+        const deviceToken = await getDeviceToken();
+        const judgmentId = caseData.judgmentId || caseData.uuid || deviceToken;
+        
+        console.log('📋 Case data received:', JSON.stringify(caseData, null, 2));
+        console.log('🔍 Using judgment ID from case data:', judgmentId);
+        console.log('🔍 Fetching judgment data for ID:', judgmentId);
+        
+        // Fetch and decrypt judgment data
+        const data = await getJudgmentData(judgmentId);
+        setJudgmentData(data);
+        
+        console.log('✅ Judgment data loaded successfully');
+        
+      } catch (err) {
+        console.error('❌ Failed to load judgment data:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load judgment data');
+        
+        // Show user-friendly error message
+        showError(
+          'Load Error',
+          'Failed to load judgment data. Please try again later.',
+          {
+            duration: 5000,
+            action: {
+              label: 'Retry',
+              onPress: () => {
+                setError(null);
+                setLoading(true);
+                setJudgmentData(null);
+              }
+            }
+          }
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchJudgment();
+  }, [caseData]);
 
   const handleEmailJudgment = () => {
     // TODO: Implement email functionality
@@ -36,6 +97,8 @@ const JudgmentScreen = () => {
   };
 
   const renderHighlightedText = (text: string) => {
+    if (!text) return <Text>No judgment text available</Text>;
+    
     const legalTerms = [
       'Motor Accidents Claims Tribunal',
       'High Court',
@@ -81,7 +144,107 @@ const JudgmentScreen = () => {
     });
   };
 
-  const judgmentText = `1. The present appeal arises out of the judgment and order dated 21.02.2020 passed by the Motor Accidents Claims Tribunal, Indore in Claim Case No. 248/2018, whereby the Tribunal has awarded a compensation of Rs. 8,00,000/- along with interest @ 9% per annum from the date of filing of the claim petition till realization.
+  // Get judgment text from decrypted data or fallback to static text
+  const getJudgmentText = () => {
+    // Log the judgment data structure for debugging
+    if (judgmentData) {
+      console.log('🔍 JudgmentScreen - judgmentData structure:', JSON.stringify(judgmentData, null, 2));
+    }
+    
+    // Parse the JSON string in judgmentData.data if it exists
+    let parsedData = null;
+    if (typeof judgmentData?.data === 'string') {
+      try {
+        parsedData = JSON.parse(judgmentData.data);
+        console.log('✅ Parsed JSON data from judgmentData.data:', parsedData);
+      } catch (error) {
+        console.log('⚠️ Failed to parse judgmentData.data as JSON:', error);
+        return judgmentData.data; // Return as string if not JSON
+      }
+    } else if (judgmentData?.data && typeof judgmentData.data === 'object') {
+      parsedData = judgmentData.data;
+    }
+    
+    // Try to get contents (base64 encoded HTML)
+    if (parsedData?.contents) {
+      try {
+        console.log('✅ Found contents field, decoding base64 HTML...');
+        const decodedContents = atob(parsedData.contents);
+        console.log('✅ Decoded HTML contents:', decodedContents.substring(0, 200) + '...');
+        
+        // Convert HTML to plain text by removing HTML tags
+        const textContent = decodedContents
+          .replace(/<[^>]*>/g, '') // Remove HTML tags
+          .replace(/&nbsp;/g, ' ') // Replace &nbsp; with space
+          .replace(/&amp;/g, '&') // Replace &amp; with &
+          .replace(/&lt;/g, '<') // Replace &lt; with <
+          .replace(/&gt;/g, '>') // Replace &gt; with >
+          .replace(/&quot;/g, '"') // Replace &quot; with "
+          .replace(/&#39;/g, "'") // Replace &#39; with '
+          .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+          .trim();
+        
+        console.log('✅ Converted HTML to text:', textContent.substring(0, 200) + '...');
+        return textContent;
+      } catch (error) {
+        console.log('⚠️ Failed to decode base64 contents:', error);
+      }
+    }
+    
+    // Try to extract text from various possible data structures
+    if (parsedData?.text) {
+      console.log('✅ Using parsedData.text');
+      return parsedData.text;
+    }
+    if (parsedData?.judgment) {
+      console.log('✅ Using parsedData.judgment');
+      return parsedData.judgment;
+    }
+    if (parsedData?.content) {
+      console.log('✅ Using parsedData.content');
+      return parsedData.content;
+    }
+    if (parsedData?.body) {
+      console.log('✅ Using parsedData.body');
+      return parsedData.body;
+    }
+    if (parsedData?.fullText) {
+      console.log('✅ Using parsedData.fullText');
+      return parsedData.fullText;
+    }
+    
+    // Try direct fields on judgmentData
+    if (judgmentData?.data?.text) {
+      console.log('✅ Using judgmentData.data.text');
+      return judgmentData.data.text;
+    }
+    if (judgmentData?.data?.judgment) {
+      console.log('✅ Using judgmentData.data.judgment');
+      return judgmentData.data.judgment;
+    }
+    if (judgmentData?.data?.content) {
+      console.log('✅ Using judgmentData.data.content');
+      return judgmentData.data.content;
+    }
+    if (judgmentData?.data?.body) {
+      console.log('✅ Using judgmentData.data.body');
+      return judgmentData.data.body;
+    }
+    if (judgmentData?.data?.fullText) {
+      console.log('✅ Using judgmentData.data.fullText');
+      return judgmentData.data.fullText;
+    }
+    
+    // If the data is a string directly
+    if (typeof judgmentData?.data === 'string') {
+      console.log('✅ Using judgmentData.data as string');
+      return judgmentData.data;
+    }
+    
+    console.log('⚠️ No judgment content found, using fallback text');
+    
+    // Fallback to static text if no decrypted data available
+    return `1. The present appeal arises out of the judgment and order dated 21.02.2020 passed by the Motor Accidents Claims Tribunal, Indore in Claim Case No. 248/2018, whereby the Tribunal has awarded a compensation of Rs. 8,00,000/- along with interest @ 9% per annum from the date of filing of the claim petition till realization.
 
 2. The brief facts of the case are that on 06.06.2018, the deceased was traveling in a car bearing registration No. MP-09-CA-1234, when the said car met with an accident with a truck bearing registration No. MP-09-GA-5678. The deceased succumbed to the injuries sustained in the accident.
 
@@ -110,16 +273,175 @@ const JudgmentScreen = () => {
 14. The appeal is allowed in part. The impugned judgment and order of the Tribunal is modified to the extent that the total compensation is enhanced from Rs. 8,00,000/- to Rs. 45,00,000/- along with interest @ 9% per annum from the date of filing of the claim petition till realization.
 
 15. The respondent Insurance Company is directed to deposit the enhanced amount of compensation within a period of two months from today, failing which the same shall carry interest @ 12% per annum from the date of this order till realization.`;
+  };
+
+  // Get judgment metadata from decrypted data or fallback to static values
+  const getJudgmentMetadata = () => {
+    // Log metadata for debugging
+    if (judgmentData?.metadata) {
+      console.log('🔍 JudgmentScreen - metadata found:', JSON.stringify(judgmentData.metadata, null, 2));
+    }
+    
+    // Parse the JSON string in judgmentData.data if it exists
+    let parsedData = null;
+    if (typeof judgmentData?.data === 'string') {
+      try {
+        parsedData = JSON.parse(judgmentData.data);
+        console.log('🔍 JudgmentScreen - parsed data for metadata:', parsedData);
+      } catch (error) {
+        console.log('⚠️ Failed to parse judgmentData.data as JSON for metadata:', error);
+      }
+    } else if (judgmentData?.data && typeof judgmentData.data === 'object') {
+      parsedData = judgmentData.data;
+    }
+    
+    if (judgmentData?.metadata) {
+      return {
+        citation: judgmentData.metadata.citation || judgmentData.metadata.caseNumber || '2025 (KER) ICO 88888',
+        court: judgmentData.metadata.court || judgmentData.metadata.tribunal || 'Supreme Court of India',
+        date: judgmentData.metadata.date || judgmentData.metadata.decidedOn || 'Decided on 15-05-2025',
+        judges: judgmentData.metadata.judges || judgmentData.metadata.bench || 'Justice Bela M Trivedi, Justice Prasanna B Varale',
+        title: judgmentData.metadata.title || judgmentData.metadata.caseTitle || 'In Re Alarming Rise In The Number of Reported Child Rape Incidents Vs. Pratishtha Thakur Haritwal'
+      };
+    }
+    
+    // Extract metadata from parsed data object
+    if (parsedData) {
+      console.log('🔍 JudgmentScreen - extracting metadata from parsed data object');
+      
+      // Format judges array if it exists
+      let judgesText = '';
+      if (parsedData.judges && Array.isArray(parsedData.judges)) {
+        judgesText = parsedData.judges.map(judge => 
+          `${judge.designation || 'Justice'} ${judge.name}`
+        ).join(', ');
+      } else if (parsedData.judges && typeof parsedData.judges === 'string') {
+        judgesText = parsedData.judges;
+      }
+      
+      return {
+        citation: parsedData.iconumber || parsedData.citation || parsedData.caseNumber || caseData.caseId || '2025 (KER) ICO 88888',
+        court: parsedData.court || parsedData.tribunal || caseData.court || 'Supreme Court of India',
+        date: parsedData.date || parsedData.decidedOn || 'Decided on 15-05-2025',
+        judges: judgesText || 'Justice Bela M Trivedi, Justice Prasanna B Varale',
+        title: parsedData.title || parsedData.caseTitle || 'In Re Alarming Rise In The Number of Reported Child Rape Incidents Vs. Pratishtha Thakur Haritwal'
+      };
+    }
+    
+    // Also try to extract metadata from the main data object (fallback)
+    if (judgmentData?.data) {
+      console.log('🔍 JudgmentScreen - trying to extract metadata from data object');
+      return {
+        citation: judgmentData.data.citation || judgmentData.data.caseNumber || caseData.caseId || '2025 (KER) ICO 88888',
+        court: judgmentData.data.court || judgmentData.data.tribunal || caseData.court || 'Supreme Court of India',
+        date: judgmentData.data.date || judgmentData.data.decidedOn || 'Decided on 15-05-2025',
+        judges: judgmentData.data.judges || judgmentData.data.bench || 'Justice Bela M Trivedi, Justice Prasanna B Varale',
+        title: judgmentData.data.title || judgmentData.data.caseTitle || 'In Re Alarming Rise In The Number of Reported Child Rape Incidents Vs. Pratishtha Thakur Haritwal'
+      };
+    }
+    
+    // Fallback metadata
+    return {
+      citation: '2025 (KER) ICO 88888',
+      court: 'Supreme Court of India',
+      date: 'Decided on 15-05-2024',
+      judges: 'Justice Bela M Trivedi, Justice Prasanna B Varale',
+      title: 'In Re Alarming Rise In The Number of Reported Child Rape Incidents Vs. Pratishtha Thakur Haritwal'
+    };
+  };
+
+  // Show loading state
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.topHeader}>
+          <View style={styles.headerLeft}>
+            <LogoSVG 
+              width={24} 
+              height={24} 
+              color="#333333" 
+            />
+            <Text style={styles.headerTitle}>Indian Cases</Text>
+          </View>
+        </View>
+
+        <View style={styles.navBar}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#333" />
+          </TouchableOpacity>
+          <Text style={styles.navTitle}>Judgement</Text>
+          <TouchableOpacity style={styles.bookmarkButton}>
+            <Ionicons name="bookmark-outline" size={24} color="#333" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.loadingText}>Loading judgment data...</Text>
+          <Text style={styles.loadingSubtext}>Decrypting and processing content</Text>
+        </View>
+      </View>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.topHeader}>
+          <View style={styles.headerLeft}>
+            <LogoSVG 
+              width={24} 
+              height={24} 
+              color="#333333" 
+            />
+            <Text style={styles.headerTitle}>Indian Cases</Text>
+          </View>
+        </View>
+
+        <View style={styles.navBar}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#333" />
+          </TouchableOpacity>
+          <Text style={styles.navTitle}>Judgement</Text>
+          <TouchableOpacity style={styles.bookmarkButton}>
+            <Ionicons name="bookmark-outline" size={24} color="#333" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle-outline" size={64} color="#FF6B6B" />
+          <Text style={styles.errorTitle}>Failed to Load Judgment</Text>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity 
+            style={styles.retryButton}
+            onPress={() => {
+              setError(null);
+              setLoading(true);
+              // Re-trigger the useEffect by updating a state
+              setJudgmentData(null);
+            }}
+          >
+            <Text style={styles.retryButtonText}>Try Again</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  // Get current judgment data
+  const metadata = getJudgmentMetadata();
+  const judgmentText = getJudgmentText();
 
   return (
     <View style={styles.container}>
       {/* Top Header with Logo */}
       <View style={styles.topHeader}>
         <View style={styles.headerLeft}>
-          <Image
-            source={require('../../assets/logo.svg')}
-            style={styles.logoImage}
-            resizeMode="contain"
+          <LogoSVG 
+            width={32} 
+            height={32} 
+            color="#333333" 
           />
           <Text style={styles.headerTitle}>Indian Cases</Text>
         </View>
@@ -148,13 +470,19 @@ const JudgmentScreen = () => {
         >
           {/* Judgment Header */}
           <View style={styles.judgmentHeader}>
-            <Text style={styles.judgmentId}>2025 (KER) ICO 88888</Text>
-            <Text style={styles.courtName}>Supreme Court of India</Text>
-            <Text style={styles.decisionDate}>Decided on 15-05-2025</Text>
-            <Text style={styles.judges}>Justice Bela M Trivedi, Justice Prasanna B Varale</Text>
+            <Text style={styles.judgmentId}>{metadata.citation}</Text>
+            <Text style={styles.courtName}>{metadata.court}</Text>
+            <Text style={styles.decisionDate}>{metadata.date}</Text>
+            <Text style={styles.judges}>{metadata.judges}</Text>
             <Text style={styles.caseTitle}>
-              In Re Alarming Rise In The Number of Reported Child Rape Incidents Vs. Pratishtha Thakur Haritwal
+              {metadata.title}
             </Text>
+            {judgmentData && (
+              <View style={styles.decryptionStatus}>
+                <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
+                <Text style={styles.decryptionStatusText}>Content decrypted successfully</Text>
+              </View>
+            )}
           </View>
 
           {/* Action Buttons */}
@@ -169,12 +497,99 @@ const JudgmentScreen = () => {
             </TouchableOpacity>
           </View>
 
+          {/* Case Details Section */}
+          {judgmentData && (() => {
+            let parsedData = null;
+            if (typeof judgmentData.data === 'string') {
+              try {
+                parsedData = JSON.parse(judgmentData.data);
+              } catch (error) {
+                parsedData = null;
+              }
+            } else if (judgmentData.data && typeof judgmentData.data === 'object') {
+              parsedData = judgmentData.data;
+            }
+
+            if (parsedData && (parsedData.parties || parsedData.lawyers || parsedData.headnotes)) {
+              return (
+                <View style={styles.caseDetailsContainer}>
+                  {/* Parties Section */}
+                  {parsedData.parties && (
+                    <View style={styles.detailSection}>
+                      <Text style={styles.detailSectionTitle}>PARTIES</Text>
+                      <View style={styles.partiesContainer}>
+                        {parsedData.parties.left && parsedData.parties.left.length > 0 && (
+                          <View style={styles.partyColumn}>
+                            <Text style={styles.partyLabel}>PETITIONER(S):</Text>
+                            {parsedData.parties.left.map((party: string, index: number) => (
+                              <Text key={index} style={styles.partyName}>• {party}</Text>
+                            ))}
+                          </View>
+                        )}
+                        {parsedData.parties.right && parsedData.parties.right.length > 0 && (
+                          <View style={styles.partyColumn}>
+                            <Text style={styles.partyLabel}>RESPONDENT(S):</Text>
+                            {parsedData.parties.right.map((party: string, index: number) => (
+                              <Text key={index} style={styles.partyName}>• {party}</Text>
+                            ))}
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Lawyers Section */}
+                  {parsedData.lawyers && (
+                    <View style={styles.detailSection}>
+                      <Text style={styles.detailSectionTitle}>ADVOCATES</Text>
+                      <View style={styles.lawyersContainer}>
+                        {parsedData.lawyers.left && parsedData.lawyers.left.length > 0 && (
+                          <View style={styles.lawyerColumn}>
+                            <Text style={styles.lawyerLabel}>FOR PETITIONER(S):</Text>
+                            {parsedData.lawyers.left.map((lawyer: any, index: number) => (
+                              <Text key={index} style={styles.lawyerName}>
+                                • {lawyer.designation || 'Adv.'} {lawyer.name}
+                              </Text>
+                            ))}
+                          </View>
+                        )}
+                        {parsedData.lawyers.right && parsedData.lawyers.right.length > 0 && (
+                          <View style={styles.lawyerColumn}>
+                            <Text style={styles.lawyerLabel}>FOR RESPONDENT(S):</Text>
+                            {parsedData.lawyers.right.map((lawyer: any, index: number) => (
+                              <Text key={index} style={styles.lawyerName}>
+                                • {lawyer.designation || 'Adv.'} {lawyer.name}
+                              </Text>
+                            ))}
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Headnotes Section */}
+                  {parsedData.headnotes && parsedData.headnotes.length > 0 && (
+                    <View style={styles.detailSection}>
+                      <Text style={styles.detailSectionTitle}>HEADNOTES</Text>
+                      {parsedData.headnotes.map((headnote: string, index: number) => (
+                        <Text key={index} style={styles.headnoteText}>
+                          {index + 1}. {headnote}
+                        </Text>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              );
+            }
+            return null;
+          })()}
+
           {/* Judgment Text */}
           <View style={styles.judgmentTextContainer}>
             <Text style={styles.judgmentLabel}>JUDGEMENT:</Text>
-            <View style={styles.judgmentTextContent}>
+            <Text style={styles.judgmentTextContent}>
               {renderHighlightedText(judgmentText)}
-            </View>
+            </Text>
           </View>
         </ScrollView>
       </View>
@@ -217,6 +632,7 @@ const styles = StyleSheet.create({
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
   },
   logoImage: {
     width: 32,
@@ -358,6 +774,137 @@ const styles = StyleSheet.create({
   highlightedText: {
     color: COLORS.primary,
     fontWeight: '600',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  loadingText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginTop: 16,
+    textAlign: 'center',
+  },
+  loadingSubtext: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 16,
+    textAlign: 'center',
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 8,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  retryButton: {
+    backgroundColor: COLORS.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 6,
+    marginTop: 24,
+  },
+  retryButtonText: {
+    color: COLORS.white,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  decryptionStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    backgroundColor: '#E8F5E8',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 4,
+  },
+  decryptionStatusText: {
+    fontSize: 12,
+    color: '#4CAF50',
+    marginLeft: 6,
+    fontWeight: '500',
+  },
+  caseDetailsContainer: {
+    paddingVertical: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#E0E0E0',
+  },
+  detailSection: {
+    marginBottom: 24,
+  },
+  detailSectionTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  partiesContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  partyColumn: {
+    flex: 1,
+    marginHorizontal: 8,
+  },
+  partyLabel: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#666',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+  },
+  partyName: {
+    fontSize: 13,
+    color: '#333',
+    lineHeight: 18,
+    marginBottom: 4,
+  },
+  lawyersContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  lawyerColumn: {
+    flex: 1,
+    marginHorizontal: 8,
+  },
+  lawyerLabel: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#666',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+  },
+  lawyerName: {
+    fontSize: 13,
+    color: '#333',
+    lineHeight: 18,
+    marginBottom: 4,
+  },
+  headnoteText: {
+    fontSize: 13,
+    color: '#333',
+    lineHeight: 20,
+    marginBottom: 12,
+    paddingLeft: 8,
   },
 });
 

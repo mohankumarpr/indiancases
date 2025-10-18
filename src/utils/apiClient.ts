@@ -3,6 +3,7 @@
 
 import API_CONFIG from '../config/api';
 import { getDeviceToken } from './deviceToken';
+import { createNewSession } from '../services/auth';
 
 let cachedDeviceToken: string | null = null;
 let cachedIpAddress: string | null = null;
@@ -14,7 +15,7 @@ let cachedIpInfo: any = null;
  */
 export const setSessionToken = (token: string | null): void => {
   cachedSessionToken = token;
-  console.log('Global session token updated:', token ? 'SET' : 'CLEARED');
+  console.log('Global session token updated:', token ? `SET (${token.substring(0, 20)}...)` : 'CLEARED');
 };
 
 /**
@@ -166,11 +167,13 @@ const buildHeaders = async (
   
   // Use provided sessionToken, or fall back to global cached sessionToken
   const tokenToUse = sessionToken !== undefined ? sessionToken : cachedSessionToken;
+  console.log('Using session token:', tokenToUse ? `Provided: ${tokenToUse.substring(0, 20)}...` : `Global: ${cachedSessionToken ? cachedSessionToken.substring(0, 20) + '...' : 'None'}`);
   
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    'Accept': 'application/json',
     'DeviceToken': deviceToken,
-    'CF-Connecting-IP': ipAddress,
+    //'CF-Connecting-IP': ipAddress,
     'SessionToken': tokenToUse || '',  // Always include SessionToken, even if empty
     ...(additionalHeaders as Record<string, string>),
   };
@@ -235,7 +238,75 @@ export const apiRequest = async <T = any>(
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`API Error: ${response.status} ${response.statusText}`, errorText);
-      throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+      
+      // Handle session token refresh for 401 errors
+      if (response.status === 401) {
+        console.log('🔄 Received 401 error, checking if session token needs refresh...');
+        console.log('🔄 Error text:', errorText);
+        try {
+          const errorData = JSON.parse(errorText);
+          console.log('🔄 Parsed error data:', errorData);
+          if (errorData.message === 'SessionToken too old') {
+            console.log('🔄 Session token is too old, refreshing...');
+            
+            // Create a new session
+            console.log('🔄 Creating new session...');
+            const sessionResponse = await createNewSession();
+            const newSessionToken = sessionResponse.session_token;
+            console.log('🔄 New session created:', newSessionToken.substring(0, 20) + '...');
+            
+            // Update the global session token
+            setSessionToken(newSessionToken);
+            console.log('✅ New session token set:', newSessionToken.substring(0, 20) + '...');
+            
+            // Retry the original request with the new session token
+            console.log('🔄 Retrying API request with new session token...');
+            console.log('🔄 Original URL:', url);
+            console.log('🔄 Original method:', method);
+            const retryHeaders = await buildHeaders(additionalHeaders, newSessionToken);
+            
+            const retryRequestOptions: RequestInit = {
+              method,
+              headers: retryHeaders,
+            };
+            
+            if (body && method !== 'GET') {
+              retryRequestOptions.body = JSON.stringify(body);
+            }
+            
+            console.log('🔄 Making retry request with headers:', retryHeaders);
+            const retryResponse = await fetch(url, retryRequestOptions);
+            console.log('🔄 Retry response status:', retryResponse.status);
+            
+            if (!retryResponse.ok) {
+              const retryErrorText = await retryResponse.text();
+              console.error(`Retry API Error: ${retryResponse.status} ${retryResponse.statusText}`, retryErrorText);
+              const retryError = new Error(`API request failed: ${retryResponse.status} ${retryResponse.statusText}`);
+              (retryError as any).response = {
+                status: retryResponse.status,
+                statusText: retryResponse.statusText,
+                data: retryErrorText
+              };
+              throw retryError;
+            }
+            
+            const retryData = await retryResponse.json();
+            console.log('✅ Retry API Response:', retryData);
+            return retryData;
+          }
+        } catch (refreshError) {
+          console.error('❌ Failed to refresh session token:', refreshError);
+        }
+      }
+      
+      // Create a more detailed error object
+      const error = new Error(`API request failed: ${response.status} ${response.statusText}`);
+      (error as any).response = {
+        status: response.status,
+        statusText: response.statusText,
+        data: errorText
+      };
+      throw error;
     }
     
     const data = await response.json();

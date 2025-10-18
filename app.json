@@ -1,16 +1,17 @@
 {
   "expo": {
-    "name": "IndiLegal Research",
+    "name": "Indian Cases",
     "slug": "indiancases",
+    "owner": "whiteband-ai",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "icon": "./assets/logo.png",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/logo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#1976d2"
+      "backgroundColor": "#000000"
     },
     "ios": {
       "supportsTablet": true,
@@ -18,37 +19,46 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#1976d2"
+        "foregroundImage": "./assets/logo.png",
+        "backgroundColor": "#000000"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.indiancases.research"
     },
     "web": {
-      "favicon": "./assets/favicon.png",
+      "favicon": "./assets/logo.png",
       "bundler": "metro",
       "template": "./web/index.html",
-      "name": "IndiLegal Research - Legal Case Database",
-      "shortName": "IndiLegal",
+      "name": "Indian Cases - Legal Case Database",
+      "shortName": "Indian Cases",
       "description": "Comprehensive legal case research platform. Search and explore judgments from Supreme Court, High Courts, and District Courts across India.",
       "lang": "en",
       "scope": "/",
       "startUrl": "/",
       "display": "standalone",
       "orientation": "portrait",
-      "themeColor": "#1976d2",
-      "backgroundColor": "#f5f5f5",
+      "themeColor": "#000000",
+      "backgroundColor": "#000000",
       "meta": {
         "viewport": "width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes",
         "description": "Access comprehensive legal databases, case laws, and judgments from courts across India. Search Supreme Court, High Court cases efficiently.",
         "keywords": "legal research, case law, Supreme Court, High Court, judgments, legal database, India, law cases, court decisions",
-        "author": "IndiLegal Research Team",
+        "author": "IndianCases Research Team",
         "robots": "index, follow",
         "googlebot": "index, follow",
         "bingbot": "index, follow"
       }
     },
-    "platforms": ["ios", "android", "web"]
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "762007f4-76d4-43d8-b8c6-6269d0ddfee5"
+      }
+    }
   }
 }

@@ -60,20 +60,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: '#1A1A1A',
     paddingVertical: 12,
-    paddingHorizontal: 6,
-    justifyContent: 'center',
+    paddingHorizontal: 4,
+    justifyContent: 'space-around',
     alignItems: 'center',
     zIndex: 1000,
     elevation: 8,
     ...(Platform.OS === 'web' && {
-      position: 'fixed',
+      position: 'fixed' as any,
     }),
   },
   navItem: {
     alignItems: 'center',
     paddingVertical: 4,
-    paddingHorizontal: 24,
-    marginHorizontal: 4,
+    paddingHorizontal: 8,
+    minWidth: 60,
+    flex: 1,
   },
   navItemActive: {
     borderBottomWidth: 3,
@@ -82,8 +83,9 @@ const styles = StyleSheet.create({
   },
   navText: {
     color: '#999',
-    fontSize: 11,
+    fontSize: 10,
     marginTop: 1,
+    textAlign: 'center',
   },
   navTextActive: {
     color: COLORS.white,

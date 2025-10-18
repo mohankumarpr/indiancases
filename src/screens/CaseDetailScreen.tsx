@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Platform,
   Linking,
-  Alert,
 } from 'react-native';
 import { useRoute } from '@react-navigation/native';
 import { RouteProp } from '@react-navigation/native';
@@ -15,11 +14,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, TYPOGRAPHY } from '../constants';
 import { RootStackParamList } from '../types';
 import Footer from '../components/Footer';
+import { useToastMessage } from '../hooks/useToastMessage';
 
 type CaseDetailScreenRouteProp = RouteProp<RootStackParamList, 'CaseDetail'>;
 
 const CaseDetailScreen = () => {
   const route = useRoute<CaseDetailScreenRouteProp>();
+  const { showSuccess, showError, showWarning, showInfo } = useToastMessage();
   const { case: caseData } = route.params;
 
   if (!caseData) {
@@ -31,18 +32,18 @@ const CaseDetailScreen = () => {
   }
 
   const handleShare = () => {
-    Alert.alert('Share', 'Share functionality will be implemented');
+    showInfo('Share', 'Share functionality will be implemented');
   };
 
   const handleBookmark = () => {
-    Alert.alert('Bookmark', 'Bookmark functionality will be implemented');
+    showInfo('Bookmark', 'Bookmark functionality will be implemented');
   };
 
   const handleDownload = () => {
     if (caseData.pdfUrl) {
       Linking.openURL(caseData.pdfUrl);
     } else {
-      Alert.alert('Download', 'PDF not available for this case');
+      showWarning('Download', 'PDF not available for this case');
     }
   };
 

@@ -35,6 +35,9 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({
   const navigation = useNavigation<CaseDetailModalNavigationProp>();
   
   if (!caseData) return null;
+  
+  // Debug: Log the case data being passed to the modal
+  console.log('🔍 CaseDetailModal - caseData received:', JSON.stringify(caseData, null, 2));
 
   const handleViewFullJudgment = () => {
     onClose(); // Close the modal first
@@ -70,14 +73,14 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({
           </View>
 
           {/* Content */}
-          <ScrollView 
-            style={styles.content}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.contentContainer}
-          >
+          <View style={styles.content}>
+            <ScrollView 
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.contentContainer}
+            >
             {/* Case Title */}
             <View style={styles.titleSection}>
-              <Text style={styles.caseTitle}>{caseData.caseNumber || "2025 (KER) ICO 88888"}</Text>
+              <Text style={styles.caseTitle}>{caseData.caseId || caseData.caseNumber || "2025 (KER) ICO 88888"}</Text>
               <Text style={styles.courtName}>{caseData.court || "Supreme Court of India"}</Text>
             </View>
 
@@ -87,29 +90,23 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({
               <View style={styles.detailItem}>
                 <Text style={styles.detailLabel}>CASE NUMBER:</Text>
                 <Text style={styles.detailText}>
-                  W.P. (C). No. 36659 of 2022{'\n'}
-                  W.P. (C). No. 12462 of 2023{'\n'}
-                  W.P. (C). No. 13312 of 2023{'\n'}
-                  W.P. (C). No. 14576 of 2023{'\n'}
-                  W.P. (C). No. 14593 of 2023
+                  {caseData.caseId || caseData.caseNumber || "2025 (KER) ICO 88888"}
                 </Text>
               </View>
 
               {/* Equivalents */}
               <View style={styles.detailItem}>
                 <Text style={styles.detailLabel}>EQUIVALENTS:</Text>
-                <Text style={styles.detailText}>Unreported</Text>
+                <Text style={styles.detailText}>
+                  {caseData.equivalents || "Unreported"}
+                </Text>
               </View>
 
               {/* For Petitioner/Appellant */}
               <View style={styles.detailItem}>
                 <Text style={styles.detailLabel}>FOR PETITIONER/APPELLANT:</Text>
                 <Text style={styles.detailText}>
-                  Grashious Kuriakose (DGP){'\n'}
-                  P Narayanan (Addl. PP){'\n'}
-                  B G Harindranath (Sr. Adv.){'\n'}
-                  P Deepak (Amicus Curiae){'\n'}
-                  Amith Krishnan H (Adv.)
+                  {caseData.petitioners || "Grashious Kuriakose (DGP)\nP Narayanan (Addl. PP)\nB G Harindranath (Sr. Adv.)\nP Deepak (Amicus Curiae)\nAmith Krishnan H (Adv.)"}
                 </Text>
               </View>
 
@@ -117,12 +114,7 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({
               <View style={styles.detailItem}>
                 <Text style={styles.detailLabel}>FOR RESPONDENT:</Text>
                 <Text style={styles.detailText}>
-                  Some names{'\n'}
-                  Grashious Kuriakose (DGP){'\n'}
-                  P Narayanan (Addl. PP){'\n'}
-                  B G Harindranath (Sr. Adv.){'\n'}
-                  P Deepak (Amicus Curiae){'\n'}
-                  Amith Krishnan H (Adv.)
+                  {caseData.respondents || "Some names\nGrashious Kuriakose (DGP)\nP Narayanan (Addl. PP)\nB G Harindranath (Sr. Adv.)\nP Deepak (Amicus Curiae)\nAmith Krishnan H (Adv.)"}
                 </Text>
               </View>
 
@@ -130,22 +122,31 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({
               <View style={styles.detailItem}>
                 <Text style={styles.detailLabel}>HEADNOTE(S):</Text>
                 <View style={styles.headnotesContainer}>
-                  <Text style={styles.headnoteItem}>
-                    <Text style={styles.headnoteLetter}>A.</Text> Cess under the{' '}
-                    <Text style={styles.highlightedText}>Cess Act read with BOCW Act</Text> is leviable in respect of building and other construction works. Mere installation and/or erection of pipelines, equipments for generation or transmission or distribution of power, electric wires, transmission towers etc.
-                  </Text>
-                  <Text style={styles.headnoteItem}>
-                    <Text style={styles.headnoteLetter}>B.</Text> Mere installation and/or erection of pipelines, equipments{' '}
-                    <Text style={styles.highlightedText}>for generation or transmission or distribution of power,</Text> electric wires, transmission towers etc.
-                  </Text>
-                  <Text style={styles.headnoteItem}>
-                    <Text style={styles.headnoteLetter}>C.</Text> Cess under the{' '}
-                    <Text style={styles.highlightedText}>Cess Act read with BOCW Act</Text> is leviable in respect
-                  </Text>
+                  {caseData.headnote ? (
+                    <Text style={styles.headnoteItem}>
+                      {caseData.headnote}
+                    </Text>
+                  ) : (
+                    <>
+                      <Text style={styles.headnoteItem}>
+                        <Text style={styles.headnoteLetter}>A.</Text> Cess under the{' '}
+                        <Text style={styles.highlightedText}>Cess Act read with BOCW Act</Text> is leviable in respect of building and other construction works. Mere installation and/or erection of pipelines, equipments for generation or transmission or distribution of power, electric wires, transmission towers etc.
+                      </Text>
+                      <Text style={styles.headnoteItem}>
+                        <Text style={styles.headnoteLetter}>B.</Text> Mere installation and/or erection of pipelines, equipments{' '}
+                        <Text style={styles.highlightedText}>for generation or transmission or distribution of power,</Text> electric wires, transmission towers etc.
+                      </Text>
+                      <Text style={styles.headnoteItem}>
+                        <Text style={styles.headnoteLetter}>C.</Text> Cess under the{' '}
+                        <Text style={styles.highlightedText}>Cess Act read with BOCW Act</Text> is leviable in respect
+                      </Text>
+                    </>
+                  )}
                 </View>
               </View>
             </View>
-          </ScrollView>
+            </ScrollView>
+          </View>
 
           {/* Footer Button */}
           <View style={styles.footer}>
@@ -163,13 +164,13 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)', // White blur instead of black
+    backgroundColor: 'rgba(0, 0, 0, 0.5)', // Semi-transparent black background
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
     ...(Platform.OS === 'web' && {
-      backdropFilter: 'blur(8px)',
-      WebkitBackdropFilter: 'blur(8px)',
+      backdropFilter: 'blur(4px)',
+      WebkitBackdropFilter: 'blur(4px)',
     }),
   },
   overlayTouchable: {
@@ -183,6 +184,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white,
     borderRadius: 12,
     maxHeight: '85%',
+    minHeight: '60%', // Add minimum height to ensure content is visible
+    flex: 1, // Allow container to grow
     // Remove default width - let modalDesktop/modalMobile control width
     ...(Platform.OS === 'web' 
       ? { boxShadow: '0px 15px 50px rgba(0, 0, 0, 0.25)' }
@@ -218,10 +221,12 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+    flexGrow: 1, // Ensure content area grows to fill available space
   },
   contentContainer: {
     paddingHorizontal: 20,
     paddingBottom: 20,
+    flexGrow: 1, // Ensure content container grows
   },
   titleSection: {
     alignItems: 'center',

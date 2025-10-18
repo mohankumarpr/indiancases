@@ -32,10 +32,10 @@ export const getApiBaseUrl = (): string => {
 export const ENV = {
   API_URL: getApiBaseUrl(),
   ENV_NAME: process.env.EXPO_PUBLIC_ENV || 'development',
-  APP_NAME: process.env.EXPO_PUBLIC_APP_NAME || 'IndiLegal Research',
+  APP_NAME: process.env.EXPO_PUBLIC_APP_NAME || 'IndianCases Research',
   APP_VERSION: process.env.EXPO_PUBLIC_APP_VERSION || '1.0.0',
-  IS_DEV: process.env.EXPO_PUBLIC_ENV === 'development',
-  IS_PROD: process.env.EXPO_PUBLIC_ENV === 'production',
+  IS_DEV: Boolean(process.env.EXPO_PUBLIC_ENV === 'development'),
+  IS_PROD: Boolean(process.env.EXPO_PUBLIC_ENV === 'production'),
 };
 
 export default ENV;

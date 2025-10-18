@@ -8,11 +8,11 @@ interface LogoProps {
 }
 
 const Logo: React.FC<LogoProps> = ({ size = 100, color = 'white', style }) => {
-  // Use the icon.png which should work across all platforms
+  // Use the logo.png which should work across all platforms
   return (
     <View style={[styles.container, { width: size, height: size }, style]}>
       <Image
-        source={require('../../assets/icon.png')}
+        source={require('../../assets/logo.png')}
         style={[
           styles.logo,
           color === 'white' && styles.white,

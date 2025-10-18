@@ -11,6 +11,7 @@ interface AnimatedSplashProps {
 const AnimatedSplash: React.FC<AnimatedSplashProps> = ({ onAnimationComplete }) => {
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const rotateAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     // Create sequence of animations
@@ -21,43 +22,47 @@ const AnimatedSplash: React.FC<AnimatedSplashProps> = ({ onAnimationComplete }) 
         duration: 300,
         useNativeDriver: true,
       }),
-      // Zoom in effect
-      Animated.spring(scaleAnim, {
-        toValue: 1.2,
-        friction: 4,
-        tension: 40,
-        useNativeDriver: true,
-      }),
-      // Zoom out to normal size
-      Animated.spring(scaleAnim, {
+      // Step 1: Fast zoom from center to 100%
+      Animated.timing(scaleAnim, {
         toValue: 1,
-        friction: 6,
-        tension: 40,
+        duration: 400,
         useNativeDriver: true,
       }),
-      // Breathing effect - zoom in slightly
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(scaleAnim, {
-            toValue: 1.05,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(scaleAnim, {
-            toValue: 1,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-        ]),
-        { iterations: 2 } // Loop twice
-      ),
+      // Step 2: Zoom from 100% to 300% with 65° rotation
+      Animated.parallel([
+        Animated.timing(scaleAnim, {
+          toValue: 3,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(rotateAnim, {
+          toValue: 1, // 60 degrees (1 * 60 = 60°)
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ]),
+      // Step 3: Zoom from 300% to 100% while returning to 0° rotation
+      Animated.parallel([
+        Animated.timing(scaleAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(rotateAnim, {
+          toValue: 0, // Back to 0 degrees
+          duration: 800,
+          useNativeDriver: true,
+        }),
+      ]),
+      // Step 4: Wait/pause at normal size before proceeding
+      Animated.delay(1500), // Wait for 1.5 seconds
     ]).start(() => {
       // Animation complete callback
       if (onAnimationComplete) {
         onAnimationComplete();
       }
     });
-  }, [scaleAnim, fadeAnim, onAnimationComplete]);
+  }, [scaleAnim, fadeAnim, rotateAnim, onAnimationComplete]);
 
   return (
     <View style={styles.container}>
@@ -73,8 +78,14 @@ const AnimatedSplash: React.FC<AnimatedSplashProps> = ({ onAnimationComplete }) 
             transform: [
               {
                 scale: scaleAnim.interpolate({
-                  inputRange: [0, 1, 1.2],
-                  outputRange: [0.8, 1, 1.3],
+                  inputRange: [0, 1, 3],
+                  outputRange: [0.8, 1, 1.8],
+                }),
+              },
+              {
+                rotate: rotateAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: ['0deg', '60deg'],
                 }),
               },
             ],
@@ -92,8 +103,14 @@ const AnimatedSplash: React.FC<AnimatedSplashProps> = ({ onAnimationComplete }) 
             transform: [
               {
                 scale: scaleAnim.interpolate({
-                  inputRange: [0, 1, 1.2],
-                  outputRange: [0.9, 1, 1.2],
+                  inputRange: [0, 1, 3],
+                  outputRange: [0.9, 1, 1.5],
+                }),
+              },
+              {
+                rotate: rotateAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: ['0deg', '60deg'],
                 }),
               },
             ],
@@ -106,7 +123,15 @@ const AnimatedSplash: React.FC<AnimatedSplashProps> = ({ onAnimationComplete }) 
           styles.logoContainer,
           {
             opacity: fadeAnim,
-            transform: [{ scale: scaleAnim }],
+            transform: [
+              { scale: scaleAnim },
+              {
+                rotate: rotateAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: ['0deg', '60deg'],
+                }),
+              },
+            ],
           },
         ]}
       >

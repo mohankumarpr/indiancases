@@ -9,15 +9,16 @@ import {
   StatusBar,
   TextInput,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '../types';
 import { useAuthContext } from '../context/AuthContext';
-import { initAuthentication, verifyOTP, getUserInfo } from '../services/auth';
+import { initAuthentication, verifyOTP, getUserInfo, createNewSession } from '../services/auth';
+import { setSessionToken } from '../utils/apiClient';
 import LogoSVG from '../components/LogoSVG';
+import { useToastMessage } from '../hooks/useToastMessage';
 
 const { width, height } = Dimensions.get('window');
 
@@ -31,6 +32,7 @@ type LoginScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Login'
 const LoginScreen = () => {
   const navigation = useNavigation<LoginScreenNavigationProp>();
   const { login, sessionToken } = useAuthContext();
+  const { showSuccess, showError, showWarning, showInfo } = useToastMessage();
   const [showLoginForm, setShowLoginForm] = useState(false);
   const [showOTPForm, setShowOTPForm] = useState(false);
   const [email, setEmail] = useState('');
@@ -55,17 +57,17 @@ const LoginScreen = () => {
 
   const handleRequestOTP = async () => {
     if (!email.trim()) {
-      Alert.alert('Error', 'Please enter your email or mobile number');
+      showError('Validation Error', 'Please enter your email or mobile number');
       return;
     }
 
     if (!agreeToTerms) {
-      Alert.alert('Error', 'Please agree to the Terms & Conditions');
+      showError('Validation Error', 'Please agree to the Terms & Conditions');
       return;
     }
 
     if (!sessionToken) {
-      Alert.alert('Error', 'Session not ready. Please wait and try again.');
+      showError('Session Error', 'Session not ready. Please wait and try again.');
       return;
     }
 
@@ -80,10 +82,24 @@ const LoginScreen = () => {
 
       // Show OTP form
       setShowOTPForm(true);
-      Alert.alert('Success', 'OTP has been sent to your email/mobile number');
-    } catch (error) {
+      showSuccess('OTP Sent', 'OTP has been sent to your email/mobile number');
+    } catch (error: any) {
       console.error('Request OTP error:', error);
-      Alert.alert('Error', 'Failed to send OTP. Please try again.');
+      
+      // Handle specific error cases
+      if (error?.response?.status === 404) {
+        showError('User Not Found', 'This email/mobile number is not registered. Please contact support or try a different account.');
+      } else if (error?.response?.status === 400) {
+        showError('Invalid Request', 'Please check your email/mobile number format and try again.');
+      } else if (error?.response?.status === 429) {
+        showError('Too Many Requests', 'Please wait a few minutes before requesting another OTP.');
+      } else if (error?.response?.status >= 500) {
+        showError('Server Error', 'Our servers are temporarily unavailable. Please try again later.');
+      } else if (error?.message?.includes('Network')) {
+        showError('Connection Error', 'Please check your internet connection and try again.');
+      } else {
+        showError('OTP Failed', 'Failed to send OTP. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -91,12 +107,12 @@ const LoginScreen = () => {
 
   const handleVerifyOTP = async () => {
     if (!otp.trim() || otp.length < 4) {
-      Alert.alert('Error', 'Please enter a valid OTP');
+      showError('Validation Error', 'Please enter a valid OTP (4-6 characters)');
       return;
     }
 
     if (!sessionToken) {
-      Alert.alert('Error', 'Session expired. Please try again.');
+      showError('Session Error', 'Session expired. Please try again.');
       setShowOTPForm(false);
       setShowLoginForm(false);
       return;
@@ -108,16 +124,33 @@ const LoginScreen = () => {
       console.log('Verifying OTP...');
       
       const authResponse = await verifyOTP(email, otp, sessionToken);
-      const newToken = authResponse.session_token;
-      console.log('OTP verified, new session token:', newToken);
+      console.log('OTP verified successfully');
+      
+      // Check if we need to create a new session (API instruction)
+      let finalSessionToken = authResponse.session_token;
+      
+      if (authResponse.instructions && authResponse.instructions.includes('Create a new session')) {
+        console.log('Creating new session as instructed by API...');
+        const sessionResponse = await createNewSession();
+        finalSessionToken = sessionResponse.session_token;
+        console.log('New session created, token:', finalSessionToken?.substring(0, 20) + '...');
+      } else {
+        console.log('No session creation instruction found, using existing token:', finalSessionToken?.substring(0, 20) + '...');
+      }
+      
+      // Set the session token globally
+      if (finalSessionToken) {
+        setSessionToken(finalSessionToken);
+        console.log('Session token set globally');
+      }
       
       // Get user info
       console.log('Fetching user info...');
-      const userInfo = await getUserInfo(newToken);
+      const userInfo = await getUserInfo(finalSessionToken);
       console.log('User info retrieved:', userInfo);
 
       // Save to context
-      await login(newToken, {
+      await login(finalSessionToken, {
         id: userInfo.id || userInfo.email,
         email: userInfo.email,
         name: userInfo.name,
@@ -125,9 +158,25 @@ const LoginScreen = () => {
 
       // Navigate to Search screen (shows database search form)
       navigation.navigate('Search', {});
-    } catch (error) {
+    } catch (error: any) {
       console.error('Verify OTP error:', error);
-      Alert.alert('Error', 'Invalid OTP. Please try again.');
+      
+      // Handle specific error cases
+      if (error?.response?.status === 400) {
+        showError('Invalid OTP', 'The OTP you entered is incorrect. Please try again.');
+      } else if (error?.response?.status === 401) {
+        showError('Session Expired', 'Your session has expired. Please request a new OTP.');
+        setShowOTPForm(false);
+        setShowLoginForm(false);
+      } else if (error?.response?.status === 404) {
+        showError('User Not Found', 'User account not found. Please contact support.');
+      } else if (error?.response?.status >= 500) {
+        showError('Server Error', 'Our servers are temporarily unavailable. Please try again later.');
+      } else if (error?.message?.includes('Network')) {
+        showError('Connection Error', 'Please check your internet connection and try again.');
+      } else {
+        showError('Verification Failed', 'Failed to verify OTP. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -214,13 +263,16 @@ const LoginScreen = () => {
             <View style={styles.otpInputContainer}>
               <TextInput
                 style={styles.otpInput}
-                placeholder="0000"
+                placeholder="ABC123"
                 placeholderTextColor="#007AFF"
                 value={otp}
                 onChangeText={setOtp}
-                keyboardType="numeric"
-                maxLength={4}
+                keyboardType="default"
+                maxLength={6}
                 textAlign="center"
+                autoCapitalize="characters"
+                autoCorrect={false}
+                spellCheck={false}
               />
             </View>
           </View>

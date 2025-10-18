@@ -39,6 +39,13 @@ export interface User {
   avatar?: string;
 }
 
+export interface JournalItem {
+  uuid: string;
+  name: string;
+  public: boolean;
+  path: string;
+}
+
 export type RootStackParamList = {
   Login: undefined;
   Home: undefined;
@@ -46,6 +53,7 @@ export type RootStackParamList = {
   CaseDetail: { caseId: string; case?: Case };
   Judgment: { caseData?: any };
   Citation: undefined;
+  JournalDetail: { journal: JournalItem };
   Profile: undefined;
 };
 
